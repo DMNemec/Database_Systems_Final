@@ -1,0 +1,13 @@
+#Getting Notoriety
+end of games always start with "Stats for the"... line
+next line is always the column headers
+list always ends with CHANGE LEVEL:
+other lines (connections to server) can occur in the middle of those
+
+could write function that takes the cursor
+then removes the first x characters of garbage off the front
+then gets the player's name
+then gets the stats
+and ignores lines about connections
+ignores lines where the player's name is linked to a BOT id
+and exits when it hits the CHAGE LEVEL line, returning an array
