@@ -142,21 +142,20 @@ function getPlayers($file)
 
 function getNotoriety($arg)
 {
-    $values = explode("-",$arg); 
+    $values = explode("-",$arg);
 }
 
 // The main program starts here
 
 $handle = fopen(uploadLog($file), "r");
-$debug = 0;
+$debug = 1;
 
 if ($handle) {
 
     // Reset the input file to the beginning and get the Server properties
     fseek($handle,0);
     while (($line = fgets($handle)) !== false) {
-        if (preg_match ('/udp\/ip  /',$line))
-        {
+        if (preg_match ('/udp\/ip  /',$line)) {
             getServerPrivIP($line);
             getServerPubIP($line);
             getServerPort($line);
@@ -189,12 +188,14 @@ if ($handle) {
                 // process the line read.
                 if (preg_match ('/" committed suicide with "/',$line)) {
                     // echo "Suicide found: " . $line;
-                    if ($debug > 3) echo "SUICIDE: " . getPlayerName($line) . " with UID " . getUID($line) . "\n<br>";
+                    if ($debug > 3) {
+                        echo "SUICIDE: " . getPlayerName($line) . " with UID " . getUID($line) . "\n<br>";
+                    }
                     $playerDeathArray[getUID($line)]++;
                 }
                 elseif ( preg_match ('/" killed "/',$line) )
                 {
-                    if ($debug > 2) echo "Killer line: " . $line;
+                    if ($debug > 2) echo "Killer line: " . $line . "<br>";
                     $killer=getPlayerName($line);
                     $killerId = getUID($line);
                     $victim = getVictimName($line);
@@ -206,25 +207,26 @@ if ($handle) {
                 }
                 elseif (preg_match ('/connect/',$line))
                 {
-                    if ($debug > 1) echo "(Dis)Connect line: " . $line;
+                    if ($debug > 1) echo "(Dis)Connect line: " . $line . "<br>";
                 }
 
                 elseif (preg_match ('/^======/',$line))
                 {
                     echo "<br>Stats lines coming: <br>" . $line;
-                    echo "<br>You should probably parse that...\n<br>";
-                    $line = fgets($handle); //column headers
-                    echo $line . "<br>";
-                    $line = fgets($handle); //changelevel message
-                    echo $line . "<br>";
-                    $line = fgets($handle);
-                    $lineArray = preg_split('/ /',$fgets($handle), -1,PREG_SPLIT_NO_EMPTY);
-                    while (count($lineArray) == 9){
-                        echo "Line to Parse";
-                        $lineArray = preg_split('/ /',$fgets($handle), -1,PREG_SPLIT_NO_EMPTY);
+                    echo "<br>You should parse the following scores.\n<br>";
+                    $nLine = fgets($handle); //column headers
+                    echo "Column Headers: " . $nLine . "<br>";
+                    $nLine = fgets($handle);
+                    while (!preg_match ('/CHANGE LEVEL:/',$nLine)) {
+                        echo "Score Line: " . $nLine . "<br>"; //should print the scores out
+                        $nLine = fgets($handle);
+                        #next, add in the getNotoriety function here to process each line
+                        #and filter out misc lines that get in here on accident
                     }
                 }
-                $line = fgets($handle);
+                if (!preg_match ('/CHANGE LEVEL:/',$line)) {
+                    $line = fgets($handle); #might skip over changelevel line if still here
+                }
             } while (!preg_match ('/CHANGE LEVEL:/',$line) && $line = fgets($handle));
             echo "End of match $locMatch\n<br>";
             if ($debug > 1) {
