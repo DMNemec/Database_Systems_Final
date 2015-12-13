@@ -159,16 +159,20 @@ function getTime($arg) {
 
 function updateConnection($text, $array) {
     $player = getUID($text);
+    if ($player == "BOT") {
+        return;
+    }
+    echo "Player: ".$player."<br>";
     if (preg_match ('/connected, address/', $text)){
         $time = getTime($text);
-        $playerConnectArray[$player] = $time;
+        $array[$player] = $time;
     }
 }
 
 // The main program starts here
 
 $handle = fopen(uploadLog($file), "r");
-$debug = 3;
+$debug = 5;
 $database = "nemecd";
 
 $link = mysqli_connect(ini_get("mysqli.default_host"),
@@ -297,6 +301,12 @@ if ($handle) {
                     if($playerDeathArray[$key] != 0)
                     {
                         print "playerDeathArray[$key] = $playerDeathArray[$key]\n<br>";
+                    }
+                }
+                $keys = array_keys($playerConnectArray);
+                foreach($keys as $key) {
+                    if($playerConnectArray[$key] != 0) {
+                        print "playerConnectArray[$key] = $playerConnectArray[$key]\n<br>";
                     }
                 }
             }
