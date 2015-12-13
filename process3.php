@@ -154,6 +154,8 @@ function getTime($arg) {
     $timeDateLine = strtr($timeDateLine, '/', '-'); //replaces / with - in the date
     $timeDateLine = substr_replace($timeDateLine, ' ', 12, 3);//gets rid of the " - " in the date
     $timeDateLine = substr($timeDateLine, 2); //removes the "L " form the begining
+    $timeDateLine = date_create($timeDateLine);
+    $timeDateLine = date_format($timeDateLine, "Y-m-d H:i:s");
     echo "Time/Date Line: ". $timeDateLine."<br>";
 }
 
