@@ -140,15 +140,35 @@ function getPlayers($file)
 
 }
 
-function getNotoriety($arg)
-{
+function getNotoriety($arg) {
     $values = explode("-",$arg);
+}
+
+function getMatchDate($arg) {
+    $headerLine = explode(': ',$arg); #array of 2+ parts
+    $timeDateLine = $headerLine[0];
+    $timeDateLine = strtr($timeDateLine, '/', '-');
+    $timeDateLine = substr_replace($timeDateLine, ' ', 12, 3);
+    $timeDateLine = substr($timeDateLine, 2);
+    if ($debug > 2) echo "Time/Date Line: $timeDateLine <br>";
 }
 
 // The main program starts here
 
 $handle = fopen(uploadLog($file), "r");
-$debug = 1;
+$debug = 3;
+
+$link = mysqli_connect(ini_get("mysqli.default_host"),
+                       ini_get("mysqli.default_user"),
+                       ini_get("mysqli.default_pw"),
+                       'hlxce');
+
+if(!$link) {
+    printf("Can't connect to MySQL Server.  Errorcode: %\n", mysqli_connect_error());
+    exit;
+} else {
+    printf("Successfully connected to MySQL Server.");
+}
 
 if ($handle) {
 
@@ -156,13 +176,25 @@ if ($handle) {
     fseek($handle,0);
     while (($line = fgets($handle)) !== false) {
         if (preg_match ('/udp\/ip  /',$line)) {
-            getServerPrivIP($line);
+            $serverPrivIP = getServerPrivIP($line);
             getServerPubIP($line);
-            getServerPort($line);
+            $serverPort = getServerPort($line);
             if ($debug > 2) {
                 echo "Server Private IP: " . getServerPrivIP($line). "\n<br>";
                 echo "Server Public IP: " . getServerPubIP($line). "\n<br>";
                 echo "Server Port: " . getServerPort($line). "\n<br>";
+            }
+            $serverIdQuery = 'select serverId from hlstats_Servers where address = "'.$serverPrivIP.'" and port = "'.$serverPort.'"';
+            $serverIdResults = $link->query($serverIdQuery);
+            if ($serverIdResults->num_rows > 0){
+                $row = $serverIdResults->fetch_assoc();
+                $serverId = $row["serverId"];
+            } else {
+                echo "Unable to retreive Server ID from database.<br>";
+                exit;
+            }
+            if ($debug > 2) {
+                echo "Server ID: ".$serverId."<br>";
             }
             break;
         }
@@ -214,19 +246,24 @@ if ($handle) {
                 {
                     echo "<br>Stats lines coming: <br>" . $line;
                     echo "<br>You should parse the following scores.\n<br>";
-                    $nLine = fgets($handle); //column headers
-                    echo "Column Headers: " . $nLine . "<br>";
-                    $nLine = fgets($handle);
-                    while (!preg_match ('/CHANGE LEVEL:/',$nLine)) {
-                        echo "Score Line: " . $nLine . "<br>"; //should print the scores out
-                        $nLine = fgets($handle);
+                    $notPos = ftell($handle); //save starting position of scoretable
+                    $line = fgets($handle); //column headers
+                    echo "Column Headers: " . $line . "<br>";
+                    $matchDate = getMatchDate($line);
+                    $line = fgets($handle);
+                    while (!preg_match ('/CHANGE LEVEL:/',$line) ) {
+                        echo "Score Line: " . $line . "<br>"; //should print the scores out
+
+                        $line = fgets($handle);
+                        if (preg_match ('/^======/',$line)) {
+                            break;
+                        }
                         #next, add in the getNotoriety function here to process each line
                         #and filter out misc lines that get in here on accident
                     }
+                    fseek($handle,$notPos);
                 }
-                if (!preg_match ('/CHANGE LEVEL:/',$line)) {
-                    $line = fgets($handle); #might skip over changelevel line if still here
-                }
+                $line = fgets($handle); #might skip over changelevel line if still here
             } while (!preg_match ('/CHANGE LEVEL:/',$line) && $line = fgets($handle));
             echo "End of match $locMatch\n<br>";
             if ($debug > 1) {
