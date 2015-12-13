@@ -141,33 +141,46 @@ function getPlayers($file)
 }
 
 function getNotoriety($arg) {
-    $values = explode("-",$arg);
+
+    $notVals = substr($arg,60,-28);
+    $notScore = intval($notVals);
+    return $notScore;
+
 }
 
-function getMatchDate($arg) {
+function getTime($arg) {
     $headerLine = explode(': ',$arg); #array of 2+ parts
-    $timeDateLine = $headerLine[0];
-    $timeDateLine = strtr($timeDateLine, '/', '-');
-    $timeDateLine = substr_replace($timeDateLine, ' ', 12, 3);
-    $timeDateLine = substr($timeDateLine, 2);
-    if ($debug > 2) echo "Time/Date Line: $timeDateLine <br>";
+    $timeDateLine = $headerLine[0]; //isolate the time/date
+    $timeDateLine = strtr($timeDateLine, '/', '-'); //replaces / with - in the date
+    $timeDateLine = substr_replace($timeDateLine, ' ', 12, 3);//gets rid of the " - " in the date
+    $timeDateLine = substr($timeDateLine, 2); //removes the "L " form the begining
+    echo "Time/Date Line: ". $timeDateLine."<br>";
+}
+
+function updateConnection($text, $array) {
+    $player = getUID($text);
+    if (preg_match ('/connected, address/', $text)){
+        $time = getTime($text);
+        $playerConnectArray[$player] = $time;
+    }
 }
 
 // The main program starts here
 
 $handle = fopen(uploadLog($file), "r");
 $debug = 3;
+$database = "nemecd";
 
 $link = mysqli_connect(ini_get("mysqli.default_host"),
                        ini_get("mysqli.default_user"),
                        ini_get("mysqli.default_pw"),
-                       'hlxce');
+                       $database);
 
 if(!$link) {
-    printf("Can't connect to MySQL Server.  Errorcode: %\n", mysqli_connect_error());
+    printf("Can't connect to MySQL Server, database $database.  Errorcode: %\n<br>", mysqli_connect_error());
     exit;
 } else {
-    printf("Successfully connected to MySQL Server.");
+printf("Successfully connected to MySQL Server, database $database.\n<br>");
 }
 
 if ($handle) {
@@ -239,35 +252,36 @@ if ($handle) {
                 }
                 elseif (preg_match ('/connect/',$line))
                 {
-                    if ($debug > 1) echo "(Dis)Connect line: " . $line . "<br>";
+                    if ($debug > 4) echo "(Dis)Connect line: " . $line . "<br>";
+                    #need to do the connect/disconnect stuff here
+                    updateConnection($line, $playerConnectArray);
                 }
 
                 elseif (preg_match ('/^======/',$line))
                 {
-                    echo "<br>Stats lines coming: <br>" . $line;
-                    echo "<br>You should parse the following scores.\n<br>";
                     $notPos = ftell($handle); //save starting position of scoretable
                     $line = fgets($handle); //column headers
-                    echo "Column Headers: " . $line . "<br>";
-                    $matchDate = getMatchDate($line);
-                    $line = fgets($handle);
+                    if ($debug > 1) echo "Column Headers: " . $line . "<br>";
+                    $matchDate = getTime($line); //I shouldn't have to explain this line
+                    $line = fgets($handle);//priming input for loop
                     while (!preg_match ('/CHANGE LEVEL:/',$line) ) {
-                        echo "Score Line: " . $line . "<br>"; //should print the scores out
-
+                        if ($debug > 1) echo "Score Line: " . $line . "<br>"; //should print the scores out
                         $line = fgets($handle);
-                        if (preg_match ('/^======/',$line)) {
+                        //prevents reading second team's score twice in competative modes
+                        if (preg_match ('/^======/',$line) or preg_match ('/rcon from/',$line)) {
                             break;
                         }
                         #next, add in the getNotoriety function here to process each line
                         #and filter out misc lines that get in here on accident
                     }
-                    fseek($handle,$notPos);
+                    fseek($handle,$notPos); //reset file cursor to the column header line
                 }
-                $line = fgets($handle); #might skip over changelevel line if still here
+                $line = fgets($handle);
             } while (!preg_match ('/CHANGE LEVEL:/',$line) && $line = fgets($handle));
-            echo "End of match $locMatch\n<br>";
+            if ($debug > 0) echo "End of match $locMatch\n<br>";
             if ($debug > 1) {
                 print_r($playerNameArray);
+                print "\n<br>";
                 $keys = array_keys($playerKillArray);
                 foreach($keys as $key)
                 {
